@@ -1,8 +1,8 @@
 '''
 list-like implementation of heap/PriorityQueue.
 '''
-from collections.abc import MutableSequence, Iterable, Iterator
-from typing import TypeVar, Union
+from collections.abc import MutableSequence, Iterable, Iterator, Callable
+from typing import TypeVar, Union, Optional, Any, cast
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from heapq import (
     heappop, heappush, heappushpop, heapreplace, heapify,
@@ -44,38 +44,46 @@ class Heap(MutableSequence[HeapContents]):
     def __init__(self,
                  items: Union[HeapContents, Iterable[HeapContents]] = None,
                  *others,
-                 max=False,  # pylint: disable=redefined-builtin
-                 _set_no_check=False):
+                 max: bool = False,  # pylint: disable=redefined-builtin
+                 key: Optional[Callable[[HeapContents], Any]] = None,
+                 _replace_heap=False):
         self.max = max
+        self.key = key
 
-        items: list[HeapContents]
+        items: list[Union[HeapContents], tuple[Any, HeapContents]]
+        self._heap: list[Union[HeapContents], tuple[Any, HeapContents]]
+        if _replace_heap:
+            self._heap = items
+            return
+
         if others:
             items = [items] + list(others)
         elif not items:
             items = []
+        else:
+            items = items[:]
 
-        if _set_no_check:
-            self._heap = items
-            return
+        if self.key is not None:
+            items = [self._add_key(i) for i in items]
 
         if items and self.max:
             heapify_max(items)
         elif items:
             heapify(items)
-        self._heap: list[HeapContents] = items
+        self._heap = items
 
     def __getitem__(self, pos: int) -> HeapContents:
         '''
         Quite inefficient.
         '''
         if pos == 0:
-            return self._heap[0]
+            return self._del_key(self._heap[0])
         if pos < 0:
             pos = len(self) + pos
 
-        for i, item in enumerate(self):
+        for i, item in enumerate(self._iter_with_key()):
             if i == pos:
-                return item
+                return self._del_key(item)
         raise IndexError('Heap index out of range')
 
     def __setitem__(self, pos: int, new_item: HeapContents) -> None:
@@ -89,10 +97,12 @@ class Heap(MutableSequence[HeapContents]):
         if pos > len(self):
             raise IndexError('Heap index out of range')
 
+        new_item = self._add_key(new_item)
+
         new_items: list[HeapContents] = []
-        for i, item in enumerate(self):
+        for i, item in enumerate(self._iter_with_key()):
             if i != pos:
-                new_items.append(item)  # we reverse maxification
+                new_items.append(item)
             else:
                 new_items.append(new_item)
         if self.max:
@@ -110,8 +120,8 @@ class Heap(MutableSequence[HeapContents]):
         if pos > len(self):
             raise IndexError('Heap index out of range')
 
-        new_items: list[HeapContents] = []
-        for i, item in enumerate(self):
+        new_items = []
+        for i, item in enumerate(self._iter_with_key()):
             if i != pos:
                 new_items.append(item)  # we reverse maxification
         if self.max:
@@ -128,15 +138,11 @@ class Heap(MutableSequence[HeapContents]):
         return bool(self._heap)
 
     def __contains__(self, item: HeapContents) -> bool:
-        return item in self._heap
+        return self._add_key(item) in self._heap
 
     def __iter__(self) -> Iterator[HeapContents]:
-        temp_heap = self._heap[:]
-        while temp_heap:
-            if self.max:
-                yield heappop_max(temp_heap)
-            else:
-                yield heappop(temp_heap)
+        for item in self._iter_with_key():
+            yield self._del_key(item)
 
     def __repr__(self) -> str:
         return f'Heap({list(self)}, max={self.max})'
@@ -144,8 +150,25 @@ class Heap(MutableSequence[HeapContents]):
     def __reversed__(self) -> 'Heap[HeapContents]':
         return Heap(self.raw(), max=not self.max)
 
-    def __sorted__(self, key=None) -> Iterator[HeapContents]:
-        return iter(self)
+    def _add_key(self, item: HeapContents) -> Union[HeapContents, tuple[Any, HeapContents]]:
+        if self.key is None:
+            return item
+        kv = self.key(item)
+        return (kv, item)
+
+    def _del_key(self, item: Union[HeapContents, tuple[Any, HeapContents]]) -> HeapContents:
+        if self.key is None:
+            return item
+        else:
+            return item[1]
+
+    def _iter_with_key(self) -> Iterator[Union[tuple[Any, HeapContents], HeapContents]]:
+        temp_heap = self._heap[:]
+        while temp_heap:
+            if self.max:
+                yield heappop_max(temp_heap)
+            else:
+                yield heappop(temp_heap)
 
     def append(self, new_item: HeapContents) -> None:
         '''
@@ -157,21 +180,22 @@ class Heap(MutableSequence[HeapContents]):
         self._heap = []
 
     def copy(self) -> 'Heap[HeapContents]':
-        return Heap(self._heap[:], max=self.max, _set_no_check=True)
+        return Heap(self._heap[:], max=self.max, key=self.key, _replace_heap=True)
 
     def count(self, item: HeapContents) -> int:
-        return self._heap.count(item)
+        return self._heap.count(self._add_key(item))
 
     def extend(self, others: Iterable[HeapContents]) -> None:
         for o in others:
-            self.push(o)
+            self.push(self._add_key(o))
 
     def index(self, item: HeapContents, start: int = 0, end: int = -1) -> int:
         '''
         Another inefficient operation
         '''
-        for i, existing in self:
-            if existing == item and i >= start and (end == -1 or i < end):
+        keyed_item = self._add_key(item)
+        for i, existing in self._iter_with_key():
+            if existing == keyed_item and i >= start and (end == -1 or i < end):
                 return i
 
         raise ValueError(f'{item!r} is not in Heap')
@@ -188,7 +212,7 @@ class Heap(MutableSequence[HeapContents]):
 
     def peek(self) -> HeapContents:
         try:
-            return self._heap[0]
+            return self._del_key(self._heap[0])
         except IndexError:
             raise IndexError('peek on empty Heap') from None
 
@@ -201,9 +225,9 @@ class Heap(MutableSequence[HeapContents]):
 
         if index == 0:
             if self.max:
-                return heappop_max(self._heap)
+                return self._del_key(heappop_max(self._heap))
             else:
-                return heappop(self._heap)
+                return self._del_key(heappop(self._heap))
 
         if index < 0 or index >= len(self._heap):
             raise IndexError('pop index out of range')
@@ -211,9 +235,10 @@ class Heap(MutableSequence[HeapContents]):
         # inefficient time.
         new_items = []
         o: HeapContents = self._heap[0]
-        for i, item in enumerate(self):
+        i = 0
+        for i, item in enumerate(self._iter_with_key()):
             if i == index:
-                o = item
+                o = self._del_key(item)
             else:
                 new_items.append(item)
 
@@ -226,22 +251,24 @@ class Heap(MutableSequence[HeapContents]):
 
     def push(self, new_item: HeapContents) -> None:
         if self.max:
-            heappush_max(self._heap, new_item)
+            heappush_max(self._heap, self._add_key(new_item))
         else:
-            heappush(self._heap, new_item)
+            heappush(self._heap, self._add_key(new_item))
 
     def pushpop(self, new_item: HeapContents) -> HeapContents:
+        new_item = self._add_key(new_item)
         if self.max:
-            return heappushpop_max(self._heap, new_item)
+            o = heappushpop_max(self._heap, new_item)
         else:
-            return heappushpop(self._heap, new_item)
+            o = heappushpop(self._heap, new_item)
+        return self._del_key(o)
 
     def raw(self) -> list[HeapContents]:
         '''
         The `raw` method returns the contents of the heap in
         arbitrary order.  Useful for efficiently calling `set(h.raw())`.
         '''
-        return self._heap
+        return [self._del_key(i) for i in self._heap]
 
     def remove(self, item: HeapContents) -> None:
         '''
@@ -251,7 +278,7 @@ class Heap(MutableSequence[HeapContents]):
         removed the smallest/largest item that equaled item.
         '''
         try:
-            self._heap.remove(item)
+            self._heap.remove(self._add_key(item))
         except ValueError:
             raise ValueError('Heap.remove(x): x not in Heap')
 
@@ -261,10 +288,15 @@ class Heap(MutableSequence[HeapContents]):
             heapify(self._heap)
 
     def replace(self, item: HeapContents) -> HeapContents:
+        '''
+        Replace the first item with the new item.  Same as heapreplace
+        '''
+        item = self._add_key(item)
         if self.max:
-            return heapreplace_max(self._heap, item)
+            o = heapreplace_max(self._heap, item)
         else:
-            return heapreplace(self._heap, item)
+            o = heapreplace(self._heap, item)
+        return self._del_key(o)
 
     def reverse(self) -> None:
         '''
