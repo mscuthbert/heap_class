@@ -25,35 +25,9 @@ dependencies = []
 dynamic = ["version"]
 
 [project.urls]
-Documentation = "https://github.com/unknown/heap-class#readme"
-Issues = "https://github.com/unknown/heap-class/issues"
-Source = "https://github.com/unknown/heap-class"
+Documentation = "https://github.com/mscuthbert/heap-class#readme"
+Issues = "https://github.com/mscuthbert/heap-class/issues"
+Source = "https://github.com/mscuthbert/heap-class"
 
 [tool.hatch.version]
-path = "heap_class/__about__.py"
-
-[tool.hatch.envs.default]
-dependencies = [
-  "pytest",
-  "pytest-cov",
-]
-[tool.hatch.envs.default.scripts]
-cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=heap_class --cov=tests"
-no-cov = "cov --no-cov"
-
-[[tool.hatch.envs.test.matrix]]
-python = ["37", "38", "39", "310", "311"]
-
-[tool.coverage.run]
-branch = true
-parallel = true
-omit = [
-  "heap_class/__about__.py",
-]
-
-[tool.coverage.report]
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
+path = "heap_class/__init__.py"
