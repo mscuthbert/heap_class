@@ -1,21 +1,24 @@
 '''
 list-like implementation of heap/PriorityQueue.
 '''
+from __future__ import annotations
+
 from collections.abc import MutableSequence, Iterable, Iterator, Callable
-from typing import TypeVar, Union, Optional, Any, cast
+from typing import TypeVar, Union, Optional, Any
 # noinspection PyUnresolvedReferences,PyProtectedMember
 from heapq import (
     heappop, heappush, heappushpop, heapreplace, heapify,
     _heappop_max as heappop_max,
     _heapreplace_max as heapreplace_max,
     _heapify_max as heapify_max,
-    _siftdown_max, _siftup_max
+    _siftdown_max,  # implemented in Python in heapq
+    _siftup_max,  # implemented in Python in heapq
 )
 
 C_LANGUAGE_HEAP = (type(heappop_max).__name__ == 'builtin_function_or_method')
 
 
-__version__ = '0.9.0b1'
+__version__ = '0.9.1b2'
 
 
 HeapContents = TypeVar('HeapContents')
@@ -42,35 +45,32 @@ def heappushpop_max(heap, item):
 class Heap(MutableSequence[HeapContents]):
     # noinspection PyShadowingBuiltins
     def __init__(self,
-                 items: Union[HeapContents, Iterable[HeapContents]] = None,
-                 *others,
+                 items: Iterable[HeapContents],
                  max: bool = False,  # pylint: disable=redefined-builtin
                  key: Optional[Callable[[HeapContents], Any]] = None,
-                 _replace_heap=False):
+                 _replace_heap: bool = False):
         self.max = max
         self.key = key
 
-        items: list[Union[HeapContents], tuple[Any, HeapContents]]
-        self._heap: list[Union[HeapContents], tuple[Any, HeapContents]]
+        self._heap: list[Union[HeapContents, tuple[Any, HeapContents]]]
         if _replace_heap:
             self._heap = items
             return
 
-        if others:
-            items = [items] + list(others)
-        elif not items:
-            items = []
+        heap_items: list[HeapContents]
+        if not items:
+            heap_items = []
         else:
-            items = items[:]
+            heap_items = list(items)
 
         if self.key is not None:
-            items = [self._add_key(i) for i in items]
+            heap_items = [self._add_key(i) for i in heap_items]
 
-        if items and self.max:
-            heapify_max(items)
-        elif items:
-            heapify(items)
-        self._heap = items
+        if heap_items and self.max:
+            heapify_max(heap_items)
+        elif heap_items:
+            heapify(heap_items)
+        self._heap = heap_items
 
     def __getitem__(self, pos: int) -> HeapContents:
         '''
@@ -111,7 +111,7 @@ class Heap(MutableSequence[HeapContents]):
             heapify(new_items)
         self._heap = new_items
 
-    def __delitem__(self, pos) -> None:
+    def __delitem__(self, pos: int) -> None:
         '''
         Quite inefficient
         '''
@@ -256,6 +256,11 @@ class Heap(MutableSequence[HeapContents]):
             heappush(self._heap, self._add_key(new_item))
 
     def pushpop(self, new_item: HeapContents) -> HeapContents:
+        '''
+        Add `new_item` to the heap and then pop the top
+        of the heap.  More efficient than pushing
+        and popping in two operations.
+        '''
         new_item = self._add_key(new_item)
         if self.max:
             o = heappushpop_max(self._heap, new_item)

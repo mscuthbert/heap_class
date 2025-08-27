@@ -8,16 +8,19 @@ description = 'A list-like implementation of heap/PriorityQueue'
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
-keywords = []
+keywords = ["heap", "sorting", "PriorityQueue"]
 authors = [
-  { name = "Michael Scott Asato Cuthbert", email = "cuthbert@mit.edu" },
+  { name = "Michael Scott Asato Cuthbert", email = "michael.asato.cuthbert@gmail.com" },
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -25,9 +28,25 @@ dependencies = []
 dynamic = ["version"]
 
 [project.urls]
-Documentation = "https://github.com/mscuthbert/heap-class#readme"
-Issues = "https://github.com/mscuthbert/heap-class/issues"
-Source = "https://github.com/mscuthbert/heap-class"
+Homepage = "https://github.com/mscuthbert/heap_class"
+Documentation = "https://github.com/mscuthbert/heap_class#readme"
+Issues = "https://github.com/mscuthbert/heap_class/issues"
+Source = "https://github.com/mscuthbert/heap_class"
 
 [tool.hatch.version]
 path = "heap_class/__init__.py"
+
+# Keep wheels/sdists tidy: include only heap_class package, exclude tests and dotfiles
+[tool.hatch.build.targets.wheel]
+packages = ["heap_class"]
+
+[tool.hatch.build]
+exclude = [
+  "/tests",
+  "/.cadence",
+  "/.idea",
+  "/.github",
+  "/.gitignore",
+  "/.git",
+  "/.pytest_cache",
+]
