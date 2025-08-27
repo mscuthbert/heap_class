@@ -191,14 +191,21 @@ If you get big failures, make sure you've run `pip install -e .` in the main dir
 
 Fix any problems, obviously.
 
-* Update `__version__` in `heap_class/__init.py`.
+* Update `__version__` in `heap_class/__init__.py`.
 * Empty existing builds:
 
 ```
 % trash dist build *.egg-info
 ```
 
-(if you don't have trash on your OS, use `rm -rf` instead)
+(if you don't have trash on your OS, delete the `dist` `build` and `*.egg-info` files/directories 
+manually or in another way)
+
+* Build the distribution
+
+```
+% python -m build
+```
 
 * Check that artifacts render on PyPI
 

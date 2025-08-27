@@ -46,7 +46,6 @@ exclude = [
   "/.cadence",
   "/.idea",
   "/.github",
-  "/.gitignore",
   "/.git",
   "/.pytest_cache",
 ]
